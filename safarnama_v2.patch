@@ -1,0 +1,823 @@
+From 6f08def31fece5f60d2bd1cab779ca2512dca7b3 Mon Sep 17 00:00:00 2001
+From: hemendera2 <241481814+hemendera2@users.noreply.github.com>
+Date: Fri, 7 Aug 2026 18:25:47 +0000
+Subject: [PATCH] Refactor to Clean Architecture: Implement production-ready V2
+ schema, Service/Repository pattern, and API versioning
+
+Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
+---
+ .gitignore                           |   4 +
+ README.md                            |  51 +++++++++-
+ main.py                              |   8 ++
+ requirements.txt                     |  22 +++++
+ src/api/v1/endpoints/__init__.py     |   5 +
+ src/api/v1/endpoints/places.py       |  18 ++++
+ src/app_factory.py                   |  37 +++++++
+ src/core/config.py                   |  20 ++++
+ src/db/seed_v2.py                    | 142 +++++++++++++++++++++++++++
+ src/models/__init__.py               |  18 ++++
+ src/models/base.py                   |  19 ++++
+ src/models/location.py               |  51 ++++++++++
+ src/models/place.py                  | 115 ++++++++++++++++++++++
+ src/repositories/base_repository.py  |  22 +++++
+ src/repositories/place_repository.py |  19 ++++
+ src/schemas/place_schema.py          |  31 ++++++
+ src/services/place_service.py        |  10 ++
+ static/index.html                    |  75 ++++++++++++++
+ 18 files changed, 666 insertions(+), 1 deletion(-)
+ create mode 100644 .gitignore
+ create mode 100644 main.py
+ create mode 100644 requirements.txt
+ create mode 100644 src/api/v1/endpoints/__init__.py
+ create mode 100644 src/api/v1/endpoints/places.py
+ create mode 100644 src/app_factory.py
+ create mode 100644 src/core/config.py
+ create mode 100644 src/db/seed_v2.py
+ create mode 100644 src/models/__init__.py
+ create mode 100644 src/models/base.py
+ create mode 100644 src/models/location.py
+ create mode 100644 src/models/place.py
+ create mode 100644 src/repositories/base_repository.py
+ create mode 100644 src/repositories/place_repository.py
+ create mode 100644 src/schemas/place_schema.py
+ create mode 100644 src/services/place_service.py
+ create mode 100644 static/index.html
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..76882ce
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,4 @@
++venv/
++__pycache__/
++*.db
++.env
+diff --git a/README.md b/README.md
+index 041e0b4..92c20ea 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1,50 @@
+-# Safarnama
+\ No newline at end of file
++# Safarnama 🗺️ - Production-Ready Architecture
++
++Safarnama is a scalable, professional-grade discovery platform for India's offbeat travel spots.
++
++## 🏗️ Architecture (Clean Architecture)
++The project follows Clean Architecture principles to ensure scalability and maintainability:
++- **`src/api/`**: RESTful API endpoints (Flask Blueprints).
++- **`src/services/`**: Business logic layer.
++- **`src/repositories/`**: Data access layer (Repository Pattern).
++- **`src/models/`**: SQLAlchemy models with UUIDs and many-to-many relationships.
++- **`src/core/`**: Centralized configuration and settings.
++- **`src/schemas/`**: Pydantic schemas for request/response validation.
++
++## 🗄️ Database Schema (V2)
++The schema has been expanded to a granular geo-hierarchy:
++- **Location**: Country ➔ State ➔ District ➔ City ➔ Village.
++- **Classification**: Categories, Subcategories, Tags, and Activities.
++- **Place Details**: Latitude/Longitude (PostGIS ready), altitude, crowd factor, safety rating, and detailed descriptions.
++
++## 🚀 Getting Started
++
++### 1. Prerequisites
++- Python 3.11+
++- Virtual Environment
++
++### 2. Installation
++```bash
++python3 -m venv venv
++source venv/bin/activate
++pip install -r requirements.txt
++```
++
++### 3. Initialize & Seed Database
++```bash
++export PYTHONPATH=$PYTHONPATH:.
++python3 src/db/seed_v2.py
++```
++
++### 4. Run the Application
++```bash
++export PYTHONPATH=$PYTHONPATH:.
++python3 main.py
++```
++The API will be available at `http://localhost:5000/api/v1/`.
++The Interactive Map is served at `http://localhost:5000/`.
++
++## 🛠️ Tech Stack
++- **Backend**: Python, Flask, SQLAlchemy, Pydantic.
++- **Database**: SQLite (V2 Schema, transition-ready for PostgreSQL/PostGIS).
++- **Frontend**: Vanilla JS, Leaflet.js.
+diff --git a/main.py b/main.py
+new file mode 100644
+index 0000000..cc9e171
+--- /dev/null
++++ b/main.py
+@@ -0,0 +1,8 @@
++from src.app_factory import create_app
++import os
++
++app = create_app()
++
++if __name__ == "__main__":
++    port = int(os.environ.get("PORT", 5000))
++    app.run(host="0.0.0.0", port=port)
+diff --git a/requirements.txt b/requirements.txt
+new file mode 100644
+index 0000000..3d7b453
+--- /dev/null
++++ b/requirements.txt
+@@ -0,0 +1,22 @@
++alembic==1.19.0
++annotated-types==0.8.0
++blinker==1.9.0
++click==8.4.2
++Flask==3.1.3
++flask-cors==6.0.5
++Flask-Migrate==4.1.0
++Flask-SQLAlchemy==3.1.1
++greenlet==3.5.4
++itsdangerous==2.2.0
++Jinja2==3.1.6
++Mako==1.4.1
++MarkupSafe==3.0.3
++pydantic==2.13.4
++pydantic-settings==2.15.0
++pydantic_core==2.46.4
++python-dotenv==1.2.2
++SQLAlchemy==2.0.51
++SQLAlchemy-Utils==0.42.1
++typing-inspection==0.4.2
++typing_extensions==4.16.0
++Werkzeug==3.1.8
+diff --git a/src/api/v1/endpoints/__init__.py b/src/api/v1/endpoints/__init__.py
+new file mode 100644
+index 0000000..deeba1e
+--- /dev/null
++++ b/src/api/v1/endpoints/__init__.py
+@@ -0,0 +1,5 @@
++from flask import Blueprint
++from .places import router as places_router
++
++api_router = Blueprint("api_v1", __name__)
++api_router.register_blueprint(places_router, url_prefix="/places")
+diff --git a/src/api/v1/endpoints/places.py b/src/api/v1/endpoints/places.py
+new file mode 100644
+index 0000000..bfdc0de
+--- /dev/null
++++ b/src/api/v1/endpoints/places.py
+@@ -0,0 +1,18 @@
++from flask import Blueprint, jsonify, request
++from src.services.place_service import place_service
++from src.schemas.place_schema import PlaceCreate
++
++router = Blueprint("places", __name__)
++
++@router.route("/", methods=["GET"])
++def get_places():
++    # Basic filters can be added here
++    places = place_service.get_all()
++    return jsonify([place.to_dict() for place in places])
++
++@router.route("/<id>", methods=["GET"])
++def get_place(id):
++    place = place_service.get_by_id(id)
++    if not place:
++        return jsonify({"error": "Place not found"}), 404
++    return jsonify(place.to_dict())
+diff --git a/src/app_factory.py b/src/app_factory.py
+new file mode 100644
+index 0000000..df96881
+--- /dev/null
++++ b/src/app_factory.py
+@@ -0,0 +1,37 @@
++from flask import Flask, send_from_directory
++from flask_cors import CORS
++from flask_migrate import Migrate
++from src.core.config import settings
++from src.models import db
++import logging
++import os
++
++def create_app():
++    app = Flask(__name__, static_folder='../static')
++    app.config["SQLALCHEMY_DATABASE_URI"] = settings.DATABASE_URL
++    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
++    app.config["SECRET_KEY"] = settings.SECRET_KEY
++
++    # Initialize Extensions
++    db.init_app(app)
++    Migrate(app, db)
++    CORS(app)
++
++    # Logging
++    logging.basicConfig(level=logging.INFO)
++    logger = logging.getLogger(__name__)
++    logger.info("Initializing Safarnama API...")
++
++    # Register Blueprints
++    from src.api.v1.endpoints import api_router
++    app.register_blueprint(api_router, url_prefix=settings.API_V1_STR)
++
++    @app.route("/")
++    def index():
++        return send_from_directory(app.static_folder, 'index.html')
++
++    @app.route("/health")
++    def health_check():
++        return {"status": "healthy"}
++
++    return app
+diff --git a/src/core/config.py b/src/core/config.py
+new file mode 100644
+index 0000000..328c698
+--- /dev/null
++++ b/src/core/config.py
+@@ -0,0 +1,20 @@
++import os
++from pydantic_settings import BaseSettings
++from dotenv import load_dotenv
++
++load_dotenv()
++
++class Settings(BaseSettings):
++    PROJECT_NAME: str = "Safarnama"
++    API_V1_STR: str = "/api/v1"
++    
++    # Database
++    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(os.getcwd(), 'db/safarnama_v2.db')}")
++    
++    # Security
++    SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey")
++    
++    class Config:
++        case_sensitive = True
++
++settings = Settings()
+diff --git a/src/db/seed_v2.py b/src/db/seed_v2.py
+new file mode 100644
+index 0000000..4fc6cbf
+--- /dev/null
++++ b/src/db/seed_v2.py
+@@ -0,0 +1,142 @@
++from src.app_factory import create_app
++from src.models import db, Country, State, District, City, Village, Category, SubCategory, Tag, Activity, Place
++import os
++
++app = create_app()
++
++def seed():
++    with app.app_context():
++        # Clean existing data
++        db.drop_all()
++        db.create_all()
++
++        # Countries
++        india = Country(name="India", code="IN")
++        db.session.add(india)
++        db.session.flush()
++
++        # States
++        states_data = [
++            ("Meghalaya", "North-East"),
++            ("Maharashtra", "West"),
++            ("Karnataka", "South"),
++            ("Himachal Pradesh", "North"),
++            ("Kerala", "South")
++        ]
++        states_objs = {}
++        for name, region in states_data:
++            s = State(name=name, region=region, country_id=india.id)
++            db.session.add(s)
++            states_objs[name] = s
++        db.session.flush()
++
++        # Districts (simplified for seed)
++        districts_objs = {}
++        district_map = {
++            "Meghalaya": "West Jaintia Hills",
++            "Maharashtra": "Satara",
++            "Karnataka": "Shimoga",
++            "Himachal Pradesh": "Kullu",
++            "Kerala": "Idukki"
++        }
++        for s_name, d_name in district_map.items():
++            d = District(name=d_name, state_id=states_objs[s_name].id)
++            db.session.add(d)
++            districts_objs[s_name] = d
++        db.session.flush()
++
++        # Cities/Villages
++        cities_objs = {}
++        city_map = {
++            "Meghalaya": "Jowai",
++            "Maharashtra": "Satara",
++            "Karnataka": "Agumbe",
++            "Himachal Pradesh": "Sainj",
++            "Kerala": "Vagamon"
++        }
++        for s_name, c_name in city_map.items():
++            c = City(name=c_name, district_id=districts_objs[s_name].id, is_offbeat_hub=True)
++            db.session.add(c)
++            cities_objs[s_name] = c
++        db.session.flush()
++
++        # Categories
++        categories = ["Nature", "Adventure", "Heritage", "Religious"]
++        cat_objs = {}
++        for c in categories:
++            obj = Category(name=c)
++            db.session.add(obj)
++            cat_objs[c] = obj
++        db.session.flush()
++
++        # SubCategories
++        subcats = {
++            "Nature": ["Waterfall", "Meadow", "Hill"],
++            "Adventure": ["Trek", "Camping"]
++        }
++        subcat_objs = {}
++        for cat_name, sub_list in subcats.items():
++            for sub in sub_list:
++                obj = SubCategory(name=sub, category_id=cat_objs[cat_name].id)
++                db.session.add(obj)
++                subcat_objs[sub] = obj
++        db.session.flush()
++
++        # Tags
++        tags_list = ["Monsoon Spot", "Sunset Point", "Hidden Gem", "Offbeat"]
++        tag_objs = {}
++        for t in tags_list:
++            obj = Tag(name=t)
++            db.session.add(obj)
++            tag_objs[t] = obj
++        db.session.flush()
++
++        # Places
++        places_data = [
++            {
++                "name": "Phe Phe Falls",
++                "state": "Meghalaya",
++                "city": "Meghalaya",
++                "category": "Nature",
++                "subcat": "Waterfall",
++                "lat": 25.4410, "lon": 92.5165,
++                "desc": "A stunning two-tier waterfall hidden away from the mainstream commercial tourist tracks of Shillong.",
++                "reach": "Trek from Jowai",
++                "crowd": 2, "time": "Monsoon"
++            },
++            {
++                "name": "Shangarh Meadows",
++                "state": "Himachal Pradesh",
++                "city": "Himachal Pradesh",
++                "category": "Nature",
++                "subcat": "Meadow",
++                "lat": 31.6789, "lon": 77.3512,
++                "desc": "A pristine, wide-open green meadow inside the Great Himalayan National Park.",
++                "reach": "Drive from Sainj",
++                "crowd": 2, "time": "Summer/Winter"
++            }
++        ]
++
++        for p in places_data:
++            place = Place(
++                name=p["name"],
++                state_id=states_objs[p["state"]].id,
++                city_id=cities_objs[p["city"]].id,
++                category_id=cat_objs[p["category"]].id,
++                subcategory_id=subcat_objs[p["subcat"]].id,
++                latitude=p["lat"],
++                longitude=p["lon"],
++                description=p["desc"],
++                how_to_reach=p["reach"],
++                crowd_factor=p["crowd"],
++                best_time_to_visit=p["time"]
++            )
++            place.tags.append(tag_objs["Offbeat"])
++            place.tags.append(tag_objs["Hidden Gem"])
++            db.session.add(place)
++
++        db.session.commit()
++        print("Production-ready database seeded!")
++
++if __name__ == "__main__":
++    seed()
+diff --git a/src/models/__init__.py b/src/models/__init__.py
+new file mode 100644
+index 0000000..d6ebfcc
+--- /dev/null
++++ b/src/models/__init__.py
+@@ -0,0 +1,18 @@
++from .base import db
++from .location import Country, State, District, City, Village
++from .place import Place, Category, SubCategory, Tag, Activity, PlaceImage, place_tags, place_activities
++
++__all__ = [
++    "db",
++    "Country",
++    "State",
++    "District",
++    "City",
++    "Village",
++    "Place",
++    "Category",
++    "SubCategory",
++    "Tag",
++    "Activity",
++    "PlaceImage",
++]
+diff --git a/src/models/base.py b/src/models/base.py
+new file mode 100644
+index 0000000..202b065
+--- /dev/null
++++ b/src/models/base.py
+@@ -0,0 +1,19 @@
++from flask_sqlalchemy import SQLAlchemy
++from sqlalchemy.orm import DeclarativeBase
++from sqlalchemy import MetaData
++import uuid
++from datetime import datetime
++
++class Base(DeclarativeBase):
++    metadata = MetaData(naming_convention={
++        "ix": "ix_%(column_0_label)s",
++        "uq": "uq_%(table_name)s_%(column_0_name)s",
++        "ck": "ck_%(table_name)s_%(constraint_name)s",
++        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
++        "pk": "pk_%(table_name)s"
++    })
++
++db = SQLAlchemy(model_class=Base)
++
++def generate_uuid():
++    return str(uuid.uuid4())
+diff --git a/src/models/location.py b/src/models/location.py
+new file mode 100644
+index 0000000..fd8dbb1
+--- /dev/null
++++ b/src/models/location.py
+@@ -0,0 +1,51 @@
++from .base import db, generate_uuid
++from sqlalchemy import String, Integer, ForeignKey, Boolean
++from sqlalchemy.orm import Mapped, mapped_column, relationship
++
++class Country(db.Model):
++    __tablename__ = "countries"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
++    code: Mapped[str] = mapped_column(String(5), unique=True, nullable=False)
++    
++    states = relationship("State", back_populates="country")
++
++class State(db.Model):
++    __tablename__ = "states"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(100), nullable=False)
++    country_id: Mapped[str] = mapped_column(ForeignKey("countries.id"), nullable=False)
++    region: Mapped[str] = mapped_column(String(50)) # North, South, etc.
++
++    country = relationship("Country", back_populates="states")
++    districts = relationship("District", back_populates="state")
++    places = relationship("Place", back_populates="state")
++
++class District(db.Model):
++    __tablename__ = "districts"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(100), nullable=False)
++    state_id: Mapped[str] = mapped_column(ForeignKey("states.id"), nullable=False)
++
++    state = relationship("State", back_populates="districts")
++    cities = relationship("City", back_populates="district")
++
++class City(db.Model):
++    __tablename__ = "cities"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(100), nullable=False)
++    district_id: Mapped[str] = mapped_column(ForeignKey("districts.id"), nullable=False)
++    is_offbeat_hub: Mapped[bool] = mapped_column(Boolean, default=False)
++
++    district = relationship("District", back_populates="cities")
++    villages = relationship("Village", back_populates="city")
++    places = relationship("Place", back_populates="city")
++
++class Village(db.Model):
++    __tablename__ = "villages"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(100), nullable=False)
++    city_id: Mapped[str] = mapped_column(ForeignKey("cities.id"), nullable=False)
++
++    city = relationship("City", back_populates="villages")
++    places = relationship("Place", back_populates="village")
+diff --git a/src/models/place.py b/src/models/place.py
+new file mode 100644
+index 0000000..0d2ad38
+--- /dev/null
++++ b/src/models/place.py
+@@ -0,0 +1,115 @@
++from .base import db, generate_uuid
++from sqlalchemy import String, Integer, Float, ForeignKey, Text, Table, DateTime, func
++from sqlalchemy.orm import Mapped, mapped_column, relationship
++from datetime import datetime
++
++# Many-to-Many Association Tables
++place_tags = Table(
++    "place_tags",
++    db.Model.metadata,
++    db.Column("place_id", ForeignKey("places.id"), primary_key=True),
++    db.Column("tag_id", ForeignKey("tags.id"), primary_key=True),
++)
++
++place_activities = Table(
++    "place_activities",
++    db.Model.metadata,
++    db.Column("place_id", ForeignKey("places.id"), primary_key=True),
++    db.Column("activity_id", ForeignKey("activities.id"), primary_key=True),
++)
++
++class Category(db.Model):
++    __tablename__ = "categories"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
++    description: Mapped[str] = mapped_column(Text, nullable=True)
++    
++    subcategories = relationship("SubCategory", back_populates="category")
++    places = relationship("Place", back_populates="category")
++
++class SubCategory(db.Model):
++    __tablename__ = "subcategories"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(50), nullable=False)
++    category_id: Mapped[str] = mapped_column(ForeignKey("categories.id"), nullable=False)
++
++    category = relationship("Category", back_populates="subcategories")
++    places = relationship("Place", back_populates="subcategory")
++
++class Tag(db.Model):
++    __tablename__ = "tags"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
++
++class Activity(db.Model):
++    __tablename__ = "activities"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
++
++class Place(db.Model):
++    __tablename__ = "places"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    name: Mapped[str] = mapped_column(String(200), nullable=False)
++    
++    # Hierarchy
++    state_id: Mapped[str] = mapped_column(ForeignKey("states.id"), nullable=False)
++    city_id: Mapped[str] = mapped_column(ForeignKey("cities.id"), nullable=False)
++    village_id: Mapped[str] = mapped_column(ForeignKey("villages.id"), nullable=True)
++    
++    # Classification
++    category_id: Mapped[str] = mapped_column(ForeignKey("categories.id"), nullable=False)
++    subcategory_id: Mapped[str] = mapped_column(ForeignKey("subcategories.id"), nullable=True)
++    
++    # Geospatial
++    latitude: Mapped[float] = mapped_column(Float, nullable=False)
++    longitude: Mapped[float] = mapped_column(Float, nullable=False)
++    altitude: Mapped[int] = mapped_column(Integer, nullable=True)
++    
++    # Details
++    description: Mapped[str] = mapped_column(Text, nullable=False)
++    history: Mapped[str] = mapped_column(Text, nullable=True)
++    how_to_reach: Mapped[str] = mapped_column(Text, nullable=True)
++    best_time_to_visit: Mapped[str] = mapped_column(String(200))
++    crowd_factor: Mapped[int] = mapped_column(Integer, default=1) # 1-5
++    safety_rating: Mapped[int] = mapped_column(Integer, default=5) # 1-5
++    
++    # Status
++    is_published: Mapped[bool] = mapped_column(db.Boolean, default=False)
++    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
++    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
++
++    # Relationships
++    state = relationship("State", back_populates="places")
++    city = relationship("City", back_populates="places")
++    village = relationship("Village", back_populates="places")
++    category = relationship("Category", back_populates="places")
++    subcategory = relationship("SubCategory", back_populates="places")
++    tags = relationship("Tag", secondary=place_tags)
++    activities = relationship("Activity", secondary=place_activities)
++    images = relationship("PlaceImage", back_populates="place")
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "name": self.name,
++            "state_name": self.state.name if self.state else None,
++            "city_name": self.city.name if self.city else None,
++            "category_name": self.category.name if self.category else None,
++            "latitude": self.latitude,
++            "longitude": self.longitude,
++            "description": self.description,
++            "how_to_reach": self.how_to_reach,
++            "crowd_factor": self.crowd_factor,
++            "best_time_to_visit": self.best_time_to_visit,
++            "tags": [tag.name for tag in self.tags],
++            "activities": [act.name for act in self.activities]
++        }
++
++class PlaceImage(db.Model):
++    __tablename__ = "place_images"
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
++    place_id: Mapped[str] = mapped_column(ForeignKey("places.id"), nullable=False)
++    url: Mapped[str] = mapped_column(String(500), nullable=False)
++    is_hero: Mapped[bool] = mapped_column(db.Boolean, default=False)
++    
++    place = relationship("Place", back_populates="images")
+diff --git a/src/repositories/base_repository.py b/src/repositories/base_repository.py
+new file mode 100644
+index 0000000..3f9288a
+--- /dev/null
++++ b/src/repositories/base_repository.py
+@@ -0,0 +1,22 @@
++from typing import TypeVar, Generic, Type, List, Optional
++from src.models import db
++from sqlalchemy import select
++
++T = TypeVar("T")
++
++class BaseRepository(Generic[T]):
++    def __init__(self, model: Type[T]):
++        self.model = model
++
++    def get_by_id(self, id: str) -> Optional[T]:
++        return db.session.get(self.model, id)
++
++    def get_all(self) -> List[T]:
++        return db.session.execute(select(self.model)).scalars().all()
++
++    def create(self, obj_in) -> T:
++        db_obj = self.model(**obj_in)
++        db.session.add(db_obj)
++        db.session.commit()
++        db.session.refresh(db_obj)
++        return db_obj
+diff --git a/src/repositories/place_repository.py b/src/repositories/place_repository.py
+new file mode 100644
+index 0000000..0553d7c
+--- /dev/null
++++ b/src/repositories/place_repository.py
+@@ -0,0 +1,19 @@
++from .base_repository import BaseRepository
++from src.models.place import Place
++from sqlalchemy.orm import joinedload
++from src.models import db
++
++class PlaceRepository(BaseRepository[Place]):
++    def __init__(self):
++        super().__init__(Place)
++
++    def get_all_with_details(self):
++        # Using joinedload for performance (Eager loading)
++        return db.session.query(Place).options(
++            joinedload(Place.state),
++            joinedload(Place.city),
++            joinedload(Place.category),
++            joinedload(Place.tags)
++        ).all()
++
++place_repository = PlaceRepository()
+diff --git a/src/schemas/place_schema.py b/src/schemas/place_schema.py
+new file mode 100644
+index 0000000..70b2fa3
+--- /dev/null
++++ b/src/schemas/place_schema.py
+@@ -0,0 +1,31 @@
++from pydantic import BaseModel, ConfigDict
++from typing import List, Optional
++from datetime import datetime
++
++class TagSchema(BaseModel):
++    id: str
++    name: str
++    model_config = ConfigDict(from_attributes=True)
++
++class PlaceBase(BaseModel):
++    name: str
++    latitude: float
++    longitude: float
++    description: str
++    how_to_reach: Optional[str] = None
++    crowd_factor: int
++    best_time_to_visit: str
++
++class PlaceCreate(PlaceBase):
++    state_id: str
++    city_id: str
++    category_id: str
++
++class PlaceRead(PlaceBase):
++    id: str
++    state_name: str
++    city_name: str
++    category_name: str
++    tags: List[str] = []
++    
++    model_config = ConfigDict(from_attributes=True)
+diff --git a/src/services/place_service.py b/src/services/place_service.py
+new file mode 100644
+index 0000000..f53068a
+--- /dev/null
++++ b/src/services/place_service.py
+@@ -0,0 +1,10 @@
++from src.repositories.place_repository import place_repository
++
++class PlaceService:
++    def get_all(self):
++        return place_repository.get_all_with_details()
++
++    def get_by_id(self, id: str):
++        return place_repository.get_by_id(id)
++
++place_service = PlaceService()
+diff --git a/static/index.html b/static/index.html
+new file mode 100644
+index 0000000..3f09766
+--- /dev/null
++++ b/static/index.html
+@@ -0,0 +1,75 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++    <meta charset="UTF-8">
++    <meta name="viewport" content="width=device-width, initial-scale=1.0">
++    <title>Safarnama - India's Offbeat Map</title>
++    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
++    <style>
++        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
++        #map { height: 70vh; width: 100%; }
++        .container { padding: 20px; }
++        .place-card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
++        .place-card h3 { margin-top: 0; color: #2c3e50; }
++        .tag { display: inline-block; background: #e1f5fe; color: #01579b; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 5px; }
++        .meta { font-size: 0.9em; color: #666; margin-bottom: 10px; }
++        header { background: #2c3e50; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
++        h1 { margin: 0; font-size: 1.5rem; }
++        .crowd-factor { font-weight: bold; }
++    </style>
++</head>
++<body>
++    <header>
++        <h1>Safarnama 🗺️</h1>
++        <div>Exploring Offbeat India</div>
++    </header>
++
++    <div id="map"></div>
++
++    <div class="container">
++        <h2>Offbeat Destinations</h2>
++        <div id="places-list"></div>
++    </div>
++
++    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
++    <script>
++        const map = L.map('map').setView([20.5937, 78.9629], 5);
++        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
++            attribution: '© OpenStreetMap contributors'
++        }).addTo(map);
++
++        async function fetchPlaces() {
++            try {
++                const response = await fetch('/api/v1/places/');
++                const places = await response.json();
++                
++                const list = document.getElementById('places-list');
++                
++                places.forEach(place => {
++                    // Add marker to map
++                    const marker = L.marker([place.latitude, place.longitude]).addTo(map);
++                    marker.bindPopup(`<b>${place.name}</b><br>${place.city_name}, ${place.state_name}`);
++
++                    // Add to list
++                    const card = document.createElement('div');
++                    card.className = 'place-card';
++                    card.innerHTML = `
++                        <h3>${place.name}</h3>
++                        <div class="meta">${place.city_name}, ${place.state_name} | <span class="crowd-factor">Crowd Factor: ${place.crowd_factor}/5</span></div>
++                        <p>${place.description}</p>
++                        <p><strong>How to reach:</strong> ${place.how_to_reach}</p>
++                        <div>
++                            ${place.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
++                        </div>
++                    `;
++                    list.appendChild(card);
++                });
++            } catch (error) {
++                console.error('Error fetching places:', error);
++            }
++        }
++
++        fetchPlaces();
++    </script>
++</body>
++</html>
+-- 
+2.39.5
+
