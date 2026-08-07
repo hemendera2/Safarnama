@@ -14,6 +14,7 @@ The following capabilities are fully implemented, tested, and integrated:
 - **Knowledge Evolution Timeline**: Chronological verification history is powered by real `VerificationLog` data.
 - **Product Insights Dashboard**: Real-time visualization of North Star metrics (Search Success, CTR, Bookmarks).
 - **Persistent Bookmarks**: Real database persistence for authenticated users with duplicate prevention.
+- **Itinerary Builder**: Real backend CRUD for trips and stops, integrated with frontend "Active Journey" state.
 - **Security Hardening**: PBKDF2 hashing, JWT RBAC, and strict Frontend XSS sanitization (`esc()`).
 
 ---
