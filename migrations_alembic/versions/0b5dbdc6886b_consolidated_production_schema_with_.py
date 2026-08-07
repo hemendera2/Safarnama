@@ -1,8 +1,8 @@
-"""Initial Production Schema with Knowledge Graph
+"""Consolidated Production Schema with Analytics
 
-Revision ID: e5a472d88330
+Revision ID: 0b5dbdc6886b
 Revises: 
-Create Date: 2026-08-07 18:52:22.540986
+Create Date: 2026-08-07 19:09:13.836461
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e5a472d88330'
+revision: str = '0b5dbdc6886b'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -41,6 +41,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_countries')),
     sa.UniqueConstraint('code', name=op.f('uq_countries_code')),
     sa.UniqueConstraint('name', name=op.f('uq_countries_name'))
+    )
+    op.create_table('recommendation_benchmarks',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('query_text', sa.String(length=500), nullable=False),
+    sa.Column('expected_place_ids', sa.JSON(), nullable=False),
+    sa.Column('category', sa.String(length=100), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_recommendation_benchmarks'))
     )
     op.create_table('tags',
     sa.Column('id', sa.String(length=36), nullable=False),
@@ -74,6 +81,16 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], name=op.f('fk_subcategories_category_id_categories')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_subcategories'))
     )
+    op.create_table('user_events',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('user_id', sa.String(length=36), nullable=True),
+    sa.Column('event_type', sa.String(length=50), nullable=False),
+    sa.Column('payload', sa.JSON(), nullable=True),
+    sa.Column('timestamp', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_user_events_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_user_events'))
+    )
+    op.create_index(op.f('ix_user_events_event_type'), 'user_events', ['event_type'], unique=False)
     op.create_table('districts',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -114,13 +131,15 @@ def upgrade() -> None:
     sa.Column('how_to_reach', sa.Text(), nullable=True),
     sa.Column('best_time_to_visit', sa.String(length=200), nullable=False),
     sa.Column('worst_time_to_visit', sa.String(length=200), nullable=True),
-    sa.Column('opening_hours', sa.String(length=100), nullable=True),
-    sa.Column('entry_fee', sa.String(length=100), nullable=True),
+    sa.Column('budget_estimate', sa.String(length=100), nullable=True),
     sa.Column('crowd_factor', sa.Integer(), nullable=False),
     sa.Column('safety_rating', sa.Integer(), nullable=False),
     sa.Column('difficulty_level', sa.String(length=50), nullable=True),
     sa.Column('facilities', sa.JSON(), nullable=False),
     sa.Column('is_published', sa.Boolean(), nullable=False),
+    sa.Column('confidence_score', sa.Float(), nullable=False),
+    sa.Column('source_attribution', sa.String(length=500), nullable=True),
+    sa.Column('last_verified_at', sa.DateTime(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], name=op.f('fk_places_category_id_categories')),
@@ -138,6 +157,34 @@ def upgrade() -> None:
     op.create_index(op.f('ix_places_state_id'), 'places', ['state_id'], unique=False)
     op.create_index(op.f('ix_places_subcategory_id'), 'places', ['subcategory_id'], unique=False)
     op.create_index(op.f('ix_places_village_id'), 'places', ['village_id'], unique=False)
+    op.create_table('bookmarks',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('user_id', sa.String(length=36), nullable=False),
+    sa.Column('place_id', sa.String(length=36), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['place_id'], ['places.id'], name=op.f('fk_bookmarks_place_id_places')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_bookmarks_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_bookmarks'))
+    )
+    op.create_index(op.f('ix_bookmarks_place_id'), 'bookmarks', ['place_id'], unique=False)
+    op.create_index(op.f('ix_bookmarks_user_id'), 'bookmarks', ['user_id'], unique=False)
+    op.create_table('intelligence_scores',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('place_id', sa.String(length=36), nullable=False),
+    sa.Column('photography', sa.Float(), nullable=False),
+    sa.Column('adventure', sa.Float(), nullable=False),
+    sa.Column('relaxation', sa.Float(), nullable=False),
+    sa.Column('offbeat', sa.Float(), nullable=False),
+    sa.Column('family_friendly', sa.Float(), nullable=False),
+    sa.Column('couple_friendly', sa.Float(), nullable=False),
+    sa.Column('road_trip_value', sa.Float(), nullable=False),
+    sa.Column('monsoon_value', sa.Float(), nullable=False),
+    sa.Column('winter_value', sa.Float(), nullable=False),
+    sa.Column('summer_value', sa.Float(), nullable=False),
+    sa.ForeignKeyConstraint(['place_id'], ['places.id'], name=op.f('fk_intelligence_scores_place_id_places')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_intelligence_scores'))
+    )
+    op.create_index(op.f('ix_intelligence_scores_place_id'), 'intelligence_scores', ['place_id'], unique=False)
     op.create_table('node_relationships',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('source_id', sa.String(length=36), nullable=False),
@@ -205,6 +252,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_node_relationships_target_id'), table_name='node_relationships')
     op.drop_index(op.f('ix_node_relationships_source_id'), table_name='node_relationships')
     op.drop_table('node_relationships')
+    op.drop_index(op.f('ix_intelligence_scores_place_id'), table_name='intelligence_scores')
+    op.drop_table('intelligence_scores')
+    op.drop_index(op.f('ix_bookmarks_user_id'), table_name='bookmarks')
+    op.drop_index(op.f('ix_bookmarks_place_id'), table_name='bookmarks')
+    op.drop_table('bookmarks')
     op.drop_index(op.f('ix_places_village_id'), table_name='places')
     op.drop_index(op.f('ix_places_subcategory_id'), table_name='places')
     op.drop_index(op.f('ix_places_state_id'), table_name='places')
@@ -217,10 +269,13 @@ def downgrade() -> None:
     op.drop_table('villages')
     op.drop_table('cities')
     op.drop_table('districts')
+    op.drop_index(op.f('ix_user_events_event_type'), table_name='user_events')
+    op.drop_table('user_events')
     op.drop_table('subcategories')
     op.drop_table('states')
     op.drop_table('users')
     op.drop_table('tags')
+    op.drop_table('recommendation_benchmarks')
     op.drop_table('countries')
     op.drop_table('categories')
     op.drop_table('activities')

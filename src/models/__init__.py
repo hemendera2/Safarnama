@@ -5,6 +5,7 @@ from .user import User, UserRole
 
 from .graph import NodeRelationship, RelationshipType
 from .intelligence import IntelligenceScore, RecommendationBenchmark
+from .analytics import UserEvent, Bookmark
 
 __all__ = [
     "db",
@@ -25,5 +26,7 @@ __all__ = [
     "NodeRelationship",
     "RelationshipType",
     "IntelligenceScore",
-    "RecommendationBenchmark"
+    "RecommendationBenchmark",
+    "UserEvent",
+    "Bookmark"
 ]
