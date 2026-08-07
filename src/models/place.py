@@ -82,8 +82,12 @@ class Place(db.Model):
     facilities: Mapped[dict] = mapped_column(JSON, default=dict) 
     # { "parking": true, "restrooms": true, "atm": false, "network": "Poor" }
 
-    # Status
+    # Status & Trust
     is_published: Mapped[bool] = mapped_column(db.Boolean, default=False)
+    confidence_score: Mapped[float] = mapped_column(Float, default=1.0) # 0.0 to 1.0
+    source_attribution: Mapped[str] = mapped_column(String(500), nullable=True) # Origin of data
+    last_verified_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -123,6 +127,11 @@ class Place(db.Model):
             "activities": [act.name for act in self.activities],
             "facilities": self.facilities,
             "budget": self.budget_estimate,
+            "trust_signal": {
+                "confidence": self.confidence_score,
+                "source": self.source_attribution,
+                "verified_at": self.last_verified_at.isoformat() if self.last_verified_at else None
+            },
             "hero_image": next((img.url for img in self.images if img.is_hero), None),
             "relationships": [
                 {

@@ -23,6 +23,11 @@ The platform uses a 6-tier geographic model:
 - **Talisman**: Automatic security headers (HSTS, XSS protection).
 - **Limiter**: IP-based rate limiting to prevent abuse.
 
-## 5. Performance
+## 5. Data Trust & Ingestion
+- **Provenance Tracking**: Each destination tracks its source (e.g., OSM, Gov Data) and confidence level.
+- **Verification Lifecycle**: Data includes `last_verified_at` timestamps for freshness management.
+- **Smart Deduplication**: The `ImportService` utilizes name normalization and coordinate proximity checks to prevent duplicate entries.
+
+## 6. Performance
 - Indexed coordinate searches for O(log N) bounding-box lookups.
 - Eager loading (`joinedload`) to solve the N+1 query problem.

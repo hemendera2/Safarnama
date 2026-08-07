@@ -24,25 +24,56 @@ def seed():
         db.session.add(india)
         db.session.flush()
 
-        meg = State(name="Meghalaya", region="North-East", country_id=india.id)
-        hp = State(name="Himachal Pradesh", region="North", country_id=india.id)
-        db.session.add_all([meg, hp])
+        states_data = [
+            ("Meghalaya", "North-East"),
+            ("Maharashtra", "West"),
+            ("Karnataka", "South"),
+            ("Himachal Pradesh", "North"),
+            ("Kerala", "South"),
+            ("Arunachal Pradesh", "North-East")
+        ]
+        states_objs = {}
+        for name, region in states_data:
+            s = State(name=name, region=region, country_id=india.id)
+            db.session.add(s)
+            states_objs[name] = s
         db.session.flush()
 
         # Districts & Cities
-        wjh = District(name="West Jaintia Hills", state_id=meg.id)
-        kullu = District(name="Kullu", state_id=hp.id)
-        db.session.add_all([wjh, kullu])
+        dist_data = [
+            ("West Jaintia Hills", "Meghalaya"),
+            ("Satara", "Maharashtra"),
+            ("Shimoga", "Karnataka"),
+            ("Kullu", "Himachal Pradesh"),
+            ("Idukki", "Kerala"),
+            ("Lower Subansiri", "Arunachal Pradesh")
+        ]
+        districts_objs = {}
+        for d_name, s_name in dist_data:
+            d = District(name=d_name, state_id=states_objs[s_name].id)
+            db.session.add(d)
+            districts_objs[s_name] = d
         db.session.flush()
 
-        jowai = City(name="Jowai", district_id=wjh.id, is_offbeat_hub=True)
-        sainj = City(name="Sainj", district_id=kullu.id, is_offbeat_hub=True)
-        db.session.add_all([jowai, sainj])
+        city_data = [
+            ("Jowai", "Meghalaya"),
+            ("Satara", "Maharashtra"),
+            ("Agumbe", "Karnataka"),
+            ("Sainj", "Himachal Pradesh"),
+            ("Vagamon", "Kerala"),
+            ("Ziro", "Arunachal Pradesh")
+        ]
+        cities_objs = {}
+        for c_name, s_name in city_data:
+            c = City(name=c_name, district_id=districts_objs[s_name].id, is_offbeat_hub=True)
+            db.session.add(c)
+            cities_objs[c_name] = c
         db.session.flush()
 
         # Classification
         nature = Category(name="Nature")
-        db.session.add(nature)
+        adventure = Category(name="Adventure")
+        db.session.add_all([nature, adventure])
         db.session.flush()
 
         waterfall = SubCategory(name="Waterfall", category_id=nature.id)
@@ -53,39 +84,33 @@ def seed():
         # Places (Nodes)
         phe_phe = Place(
             name="Phe Phe Falls",
-            state_id=meg.id, city_id=jowai.id,
+            state_id=states_objs["Meghalaya"].id, city_id=cities_objs["Jowai"].id,
             category_id=nature.id, subcategory_id=waterfall.id,
             latitude=25.4410, longitude=92.5165,
             description="A stunning two-tier waterfall hidden in the Jaintia Hills.",
             best_time_to_visit="July to September",
-            crowd_factor=2
+            crowd_factor=2,
+            source_attribution="Government Tourism",
+            confidence_score=0.98
         )
-        
-        # Add Intelligence Scores for Phe Phe
-        phe_phe_intel = IntelligenceScore(
-            photography=0.9, adventure=0.7, offbeat=0.8,
-            monsoon_value=1.0, winter_value=0.3
-        )
-        phe_phe.intelligence = phe_phe_intel
+        phe_phe.intelligence = IntelligenceScore(photography=0.9, adventure=0.7, offbeat=0.8, monsoon_value=1.0)
 
         shangarh = Place(
             name="Shangarh Meadows",
-            state_id=hp.id, city_id=sainj.id,
+            state_id=states_objs["Himachal Pradesh"].id, city_id=cities_objs["Sainj"].id,
             category_id=nature.id, subcategory_id=meadow.id,
             latitude=31.6789, longitude=77.3512,
             description="A vast, high-altitude meadow surrounded by deodar forests.",
             best_time_to_visit="April to June",
-            crowd_factor=1
+            crowd_factor=1,
+            source_attribution="Community Verified",
+            confidence_score=0.95
         )
-        shangarh_intel = IntelligenceScore(
-            photography=0.8, relaxation=0.9, offbeat=0.7,
-            monsoon_value=0.4, summer_value=0.9, winter_value=0.8
-        )
-        shangarh.intelligence = shangarh_intel
+        shangarh.intelligence = IntelligenceScore(photography=0.8, relaxation=0.9, offbeat=0.7, summer_value=0.9)
 
         db.session.add_all([phe_phe, shangarh])
         db.session.commit()
-        print("Travel Intelligence Engine Seeded Successfully!")
+        print("Travel Intelligence & Trust Seeded Successfully!")
 
 if __name__ == "__main__":
     seed()

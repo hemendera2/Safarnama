@@ -15,7 +15,8 @@ Unlike standard travel databases, Safarnama treats every destination as a node i
 - **Intelligent Discovery**: The discovery engine uses graph weights and seasonal signals to recommend the best hidden alternatives.
 - **Advanced Metadata**: Rich destination intelligence including history, interesting facts, and infrastructure status (Parking, Network, Safety).
 - **Geospatial Intelligence**: Radius search and bounding-box optimizations ready for PostGIS scaling.
-- **Operational Excellence**: >90% backend coverage, structured JSON logging, and versioned Alembic migrations.
+- **Trust & Provenance**: Data is assigned a confidence score and source attribution, ensuring a verified discovery experience.
+- **Operational Excellence**: >90% backend coverage, structured JSON logging, and a robust deduplication ingestion pipeline.
 
 ## 🚀 Getting Started
 
