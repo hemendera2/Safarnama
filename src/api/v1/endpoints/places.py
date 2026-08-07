@@ -20,7 +20,7 @@ def get_places():
     pagination = place_service.search(filters, page, per_page)
     
     return jsonify({
-        "items": [place.to_dict() for place in pagination.items],
+        "items": pagination.ranked_items,
         "total": pagination.total,
         "page": pagination.page,
         "pages": pagination.pages,

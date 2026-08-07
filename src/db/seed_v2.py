@@ -1,12 +1,12 @@
 from src.app_factory import create_app
-from src.models import db, Country, State, District, City, Village, Category, SubCategory, Tag, Activity, Place, User, UserRole, NodeRelationship, RelationshipType
+from src.models import db, Country, State, District, City, Village, Category, SubCategory, Tag, Activity, Place, User, UserRole, NodeRelationship, RelationshipType, IntelligenceScore
 import os
 
 app = create_app()
 
 def seed():
     with app.app_context():
-        print("Starting Knowledge Graph seed...")
+        print("Starting Intelligence Graph seed...")
         # Clear data (but keep schema)
         meta = db.metadata
         for table in reversed(meta.sorted_tables):
@@ -42,20 +42,12 @@ def seed():
 
         # Classification
         nature = Category(name="Nature")
-        adventure = Category(name="Adventure")
-        db.session.add_all([nature, adventure])
+        db.session.add(nature)
         db.session.flush()
 
         waterfall = SubCategory(name="Waterfall", category_id=nature.id)
         meadow = SubCategory(name="Meadow", category_id=nature.id)
         db.session.add_all([waterfall, meadow])
-        db.session.flush()
-
-        # Tags
-        offbeat = Tag(name="Offbeat")
-        hidden = Tag(name="Hidden Gem")
-        monsoon = Tag(name="Monsoon Spot")
-        db.session.add_all([offbeat, hidden, monsoon])
         db.session.flush()
 
         # Places (Nodes)
@@ -68,7 +60,13 @@ def seed():
             best_time_to_visit="July to September",
             crowd_factor=2
         )
-        phe_phe.tags.extend([offbeat, hidden, monsoon])
+        
+        # Add Intelligence Scores for Phe Phe
+        phe_phe_intel = IntelligenceScore(
+            photography=0.9, adventure=0.7, offbeat=0.8,
+            monsoon_value=1.0, winter_value=0.3
+        )
+        phe_phe.intelligence = phe_phe_intel
 
         shangarh = Place(
             name="Shangarh Meadows",
@@ -79,39 +77,15 @@ def seed():
             best_time_to_visit="April to June",
             crowd_factor=1
         )
-        shangarh.tags.extend([offbeat, hidden])
-        
-        krang_shuri = Place(
-            name="Krang Suri Falls",
-            state_id=meg.id, city_id=jowai.id,
-            category_id=nature.id, subcategory_id=waterfall.id,
-            latitude=25.3475, longitude=92.5312,
-            description="Famous for its turquoise blue water.",
-            best_time_to_visit="September to April",
-            crowd_factor=3
+        shangarh_intel = IntelligenceScore(
+            photography=0.8, relaxation=0.9, offbeat=0.7,
+            monsoon_value=0.4, summer_value=0.9, winter_value=0.8
         )
-        krang_shuri.tags.extend([offbeat, monsoon])
+        shangarh.intelligence = shangarh_intel
 
-        db.session.add_all([phe_phe, shangarh, krang_shuri])
-        db.session.flush()
-
-        # Edges: Knowledge Graph Relationships
-        rel1 = NodeRelationship(
-            source_id=phe_phe.id,
-            target_id=krang_shuri.id,
-            rel_type=RelationshipType.NEAR,
-            weight=0.9
-        )
-        rel2 = NodeRelationship(
-            source_id=phe_phe.id,
-            target_id=krang_shuri.id,
-            rel_type=RelationshipType.RECOMMENDED_TOGETHER,
-            weight=0.8
-        )
-        
-        db.session.add_all([rel1, rel2])
+        db.session.add_all([phe_phe, shangarh])
         db.session.commit()
-        print("Knowledge Graph Seeded Successfully!")
+        print("Travel Intelligence Engine Seeded Successfully!")
 
 if __name__ == "__main__":
     seed()

@@ -4,6 +4,7 @@ from .place import Place, Category, SubCategory, Tag, Activity, PlaceImage, Revi
 from .user import User, UserRole
 
 from .graph import NodeRelationship, RelationshipType
+from .intelligence import IntelligenceScore, RecommendationBenchmark
 
 __all__ = [
     "db",
@@ -22,5 +23,7 @@ __all__ = [
     "User",
     "UserRole",
     "NodeRelationship",
-    "RelationshipType"
+    "RelationshipType",
+    "IntelligenceScore",
+    "RecommendationBenchmark"
 ]

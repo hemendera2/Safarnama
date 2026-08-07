@@ -101,6 +101,9 @@ class Place(db.Model):
     # Knowledge Graph Edges
     outgoing_relationships = relationship("NodeRelationship", foreign_keys="NodeRelationship.source_id", back_populates="source")
     incoming_relationships = relationship("NodeRelationship", foreign_keys="NodeRelationship.target_id", back_populates="target")
+    
+    # Intelligence Layer
+    intelligence = relationship("IntelligenceScore", back_populates="place", uselist=False)
 
     def to_dict(self):
         return {
