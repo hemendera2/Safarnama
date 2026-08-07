@@ -51,6 +51,10 @@ def create_app():
     def index():
         return send_from_directory(app.static_folder, 'index.html')
 
+    @app.route("/admin/insights")
+    def admin():
+        return send_from_directory(app.static_folder, 'admin.html')
+
     @app.route("/health")
     def health_check():
         try:

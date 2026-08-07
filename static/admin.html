@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Safarnama Admin - Product Insights</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-10">
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-10">
+            <h1 class="text-3xl font-extrabold text-slate-800">Product Insights Dashboard</h1>
+            <span class="bg-green-100 text-green-700 px-4 py-1 rounded-full font-bold text-sm">Validation Phase</span>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10" id="stats-grid">
+            <!-- Stats will be injected here -->
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-8 rounded-3xl shadow-sm">
+                <h3 class="text-xl font-bold mb-4 text-slate-700">North Star Performance</h3>
+                <canvas id="performanceChart"></canvas>
+                <div id="performance-data" class="space-y-4"></div>
+            </div>
+            <div class="bg-white p-8 rounded-3xl shadow-sm">
+                <h3 class="text-xl font-bold mb-4 text-slate-700">Data Knowledge Moat</h3>
+                <div id="quality-data" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadInsights() {
+            // Admin authentication would happen here
+            const token = prompt("Enter Admin Secret Key (for validation):"); 
+            // Mock auth for the validation demo
+            const res = await fetch('/api/v1/analytics/dashboard', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            render(data);
+        }
+
+        function render(data) {
+            const stats = data.product_metrics;
+            const quality = data.data_quality;
+
+            document.getElementById('stats-grid').innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <p class="text-slate-400 font-bold uppercase text-xs mb-2">Search Success</p>
+                    <p class="text-4xl font-extrabold text-indigo-600">${stats.search_success_rate}%</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <p class="text-slate-400 font-bold uppercase text-xs mb-2">Recommendation CTR</p>
+                    <p class="text-4xl font-extrabold text-green-600">${stats.recommendation_ctr}%</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <p class="text-slate-400 font-bold uppercase text-xs mb-2">Total Bookmarks</p>
+                    <p class="text-4xl font-extrabold text-orange-600">${stats.total_bookmarks}</p>
+                </div>
+            `;
+
+            document.getElementById('quality-data').innerHTML = `
+                <div class="flex justify-between items-center py-3 border-b">
+                    <span class="text-slate-600 font-medium">Verified Destinations</span>
+                    <span class="font-bold">${quality.total_destinations}</span>
+                </div>
+                <div class="flex justify-between items-center py-3 border-b">
+                    <span class="text-slate-600 font-medium">Average Confidence</span>
+                    <span class="font-bold">${Math.round(quality.average_confidence * 100)}%</span>
+                </div>
+                <div class="flex justify-between items-center py-3 border-b">
+                    <span class="text-slate-600 font-medium">Metadata Completeness</span>
+                    <span class="font-bold">${quality.completeness_score}%</span>
+                </div>
+            `;
+        }
+
+        loadInsights();
+    </script>
+</body>
+</html>

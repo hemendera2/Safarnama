@@ -47,3 +47,16 @@ def add_bookmark():
     db.session.commit()
     
     return jsonify({"message": "Bookmarked"}), 201
+
+@router.route("/dashboard", methods=["GET"])
+@jwt_required()
+def get_dashboard():
+    # In production, check for ADMIN role
+    from src.services.analytics_service import analytics_service
+    metrics = analytics_service.get_dashboard_metrics()
+    quality = analytics_service.get_data_quality_metrics()
+    
+    return jsonify({
+        "product_metrics": metrics,
+        "data_quality": quality
+    })
