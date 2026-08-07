@@ -51,3 +51,24 @@ def get_place(id):
     if not place:
         return jsonify({"error": "Place not found"}), 404
     return jsonify(place.to_dict())
+
+@router.route("/graph", methods=["GET"])
+def get_graph():
+    # Return nodes and edges for visualization
+    places = Place.query.all()
+    from src.models.graph import NodeRelationship
+    rels = NodeRelationship.query.all()
+    
+    return jsonify({
+        "nodes": [{
+            "id": p.id,
+            "name": p.name,
+            "category": p.category.name if p.category else "Uncategorized"
+        } for p in places],
+        "edges": [{
+            "source": r.source_id,
+            "target": r.target_id,
+            "type": r.rel_type.value,
+            "weight": r.weight
+        } for r in rels]
+    })

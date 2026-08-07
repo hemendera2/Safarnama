@@ -1,6 +1,6 @@
 import math
 
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from src.models import db
@@ -36,21 +36,43 @@ class PlaceRepository(BaseRepository[Place]):
         # Intelligent Search Improvements
         if filters.get("q"):
             q = filters["q"].strip().lower()
-            # 1. Alias expansion
-            if any(k in q for k in ["waterfall", "falls"]):
-                query = query.filter(Place.subcategory.has(name="Waterfall"))
-            if "meadow" in q:
-                query = query.filter(Place.subcategory.has(name="Meadow"))
             
-            # 2. Vibe matching
-            if "quiet" in q or "peaceful" in q:
+            # 1. Check for State/City/District names in query
+            # (In production, we'd use a more sophisticated NER or fuzzy match)
+            
+            # 2. Alias expansion & Experience mapping
+            experiences = {
+                "waterfall": "Waterfall",
+                "falls": "Waterfall",
+                "meadow": "Meadow",
+                "valley": "Valley",
+                "hill": "Hill",
+                "trek": "Trek",
+                "trail": "Trek",
+                "camp": "Camping"
+            }
+            for key, val in experiences.items():
+                if key in q:
+                    query = query.filter(
+                        or_(
+                            Place.subcategory.has(name=val),
+                            Place.category.has(name=val),
+                            Place.tags.any(name=val)
+                        )
+                    )
+            
+            # 3. Vibe matching
+            if any(k in q for k in ["quiet", "peaceful", "silent"]):
                 query = query.filter(Place.crowd_factor <= 2)
-            if "popular" in q:
+            if any(k in q for k in ["popular", "famous"]):
                 query = query.filter(Place.crowd_factor >= 4)
             
-            # 3. Trust-aware filtering
-            if "verified" in q or "hidden" in q:
-                query = query.filter(Place.confidence_score > 0.9)
+            # 4. Trust/Hidden Gem
+            if any(k in q for k in ["verified", "trusted"]):
+                query = query.filter(Place.confidence_score >= 0.9)
+            if any(k in q for k in ["hidden", "offbeat", "secret"]):
+                query = query.filter(Place.confidence_score >= 0.8)
+                query = query.filter(Place.crowd_factor <= 2)
 
         # Crowd factor
         if filters.get("max_crowd"):

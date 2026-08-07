@@ -119,6 +119,10 @@
         }
 
         function render(data) {
+            if (!data || !data.product_metrics) {
+                document.getElementById('stats-grid').innerHTML = '<p class="col-span-full text-center py-20 text-slate-400 font-bold">No alpha data yet.</p>';
+                return;
+            }
             const p = data.product_metrics;
             const q = data.data_quality;
 

@@ -2,6 +2,7 @@ from .analytics import Bookmark, UserEvent
 from .base import db
 from .graph import NodeRelationship, RelationshipType
 from .intelligence import IntelligenceScore, RecommendationBenchmark
+from .itinerary import Itinerary, ItineraryStop
 from .location import City, Country, District, State, Village
 from .place import (
     Activity,
@@ -40,6 +41,8 @@ __all__ = [
     "UserEvent",
     "Bookmark",
     "VerificationLog",
+    "Itinerary",
+    "ItineraryStop",
     "place_activities",
     "place_tags",
 ]
