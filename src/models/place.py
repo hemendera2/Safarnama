@@ -71,8 +71,7 @@ class Place(db.Model):
     how_to_reach: Mapped[str] = mapped_column(Text, nullable=True)
     best_time_to_visit: Mapped[str] = mapped_column(String(200)) # e.g. "Monsoon", "Oct-Mar"
     worst_time_to_visit: Mapped[str] = mapped_column(String(200), nullable=True)
-    opening_hours: Mapped[str] = mapped_column(String(100), nullable=True)
-    entry_fee: Mapped[str] = mapped_column(String(100), nullable=True)
+    budget_estimate: Mapped[str] = mapped_column(String(100), nullable=True) # e.g. "< ₹2000", "Luxury"
     
     # Ratings & Factors
     crowd_factor: Mapped[int] = mapped_column(Integer, default=1) # 1-5
@@ -120,6 +119,7 @@ class Place(db.Model):
             "tags": [tag.name for tag in self.tags],
             "activities": [act.name for act in self.activities],
             "facilities": self.facilities,
+            "budget": self.budget_estimate,
             "hero_image": next((img.url for img in self.images if img.is_hero), None),
             "relationships": [
                 {
