@@ -156,7 +156,7 @@ class ProductAnalyticsService:
 
         # 2. Metadata Depth
         def completeness(field):
-            return round(Place.query.filter(field != None, field != '').count() / total_places * 100, 1)
+            return round(db.session.query(Place).filter(field.isnot(None), field != '').count() / total_places * 100, 1)
 
         depth = {
             "description": completeness(Place.description),
